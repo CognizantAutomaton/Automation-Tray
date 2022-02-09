@@ -7,8 +7,12 @@ Add-Type -AssemblyName WindowsFormsIntegration
 #endregion
 
 #region debug
-[Array]$debuggers = @("Visual Studio Code Host","Windows PowerShell ISE Host")
-if ($debuggers.Contains($host.Name)) {
+if (($global:PSVersionTable.PSVersion.Major -gt 5) -or ($global:PSVersionTable.PSVersion.Major -lt 2)) {
+    throw "This app needs PowerShell version 2.0 through 5.1 in order to be able to run."
+}
+
+[Array]$debuggers = @("Visual Studio Code Host", "Windows PowerShell ISE Host")
+if ($debuggers -contains $host.Name) {
     $fbd = New-Object System.Windows.Forms.FolderBrowserDialog
 
     if ($fbd.ShowDialog() -eq "OK") {
@@ -55,7 +59,7 @@ $MainTrayItem.ContextMenu = $CtxMnu
 
 #region build context menu from folder structure
 # create menu items based on current working folder
-Get-ChildItem -Recurse | Select-Object FullName, PsIsContainer, @{
+$items = Get-ChildItem -Recurse | Select-Object FullName, PsIsContainer, @{
     N="Label"
     E={ [IO.Path]::GetFilenameWithoutExtension($_.Name) }
 }, @{
@@ -84,7 +88,7 @@ Get-ChildItem -Recurse | Select-Object FullName, PsIsContainer, @{
         })
     }
 
-    [Array]$Branch = @($_.RelativePath.Split("\"))
+    [string[]]$Branch = if ($null -ne $_.RelativePath) { $_.RelativePath.Split("\") } else { @() }
     $node = $CtxMnu
     for ([int]$n = 0; $n -lt $(if ($_.PsIsContainer) { $Branch.Count - 1 } else { $Branch.Count }); $n++) {
         $node = $node.MenuItems | Where-Object { $_.Text -eq $Branch[$n] }
@@ -100,7 +104,7 @@ $mnuRefresh = New-Object System.Windows.Forms.MenuItem -Property @{
 }
 $mnuRefresh.add_Click({
     $MainTrayItem.Visible = $false
-    Invoke-Item -LiteralPath $PSCommandPath.Replace(".ps1",".vbs")
+    Invoke-Item -LiteralPath (Join-Path $PWD.Path "AutomationTray.vbs")
     Stop-Process $PID
 })
 [void]$MainTrayItem.ContextMenu.MenuItems.Add($mnuRefresh)
