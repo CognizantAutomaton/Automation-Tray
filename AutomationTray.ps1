@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 if ($global:PSVersionTable.PSVersion.Major -eq 2) {
-	$PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
-	$PSCommandPath = $MyInvocation.InvocationName
+    $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
+    $PSCommandPath = $MyInvocation.InvocationName
 }
 
 #region dependencies
@@ -63,7 +63,7 @@ $MainTrayItem.ContextMenu = $CtxMnu
 
 #region build context menu from folder structure
 # create menu items based on current working folder
-$items = Get-ChildItem -Recurse | Select-Object FullName, PsIsContainer, @{
+Get-ChildItem -Recurse | Select-Object FullName, PsIsContainer, @{
     N="Label"
     E={ [IO.Path]::GetFilenameWithoutExtension($_.Name) }
 }, @{
@@ -77,7 +77,7 @@ $items = Get-ChildItem -Recurse | Select-Object FullName, PsIsContainer, @{
     }
 } | Sort-Object -Property FullName | ForEach-Object {
     $mnuItem = New-Object System.Windows.Forms.MenuItem -Property @{
-        Text = if ($_.PsIsContainer) { $_.Label } else { $_.Label.Replace("--","\") }
+        Text = if ($_.PsIsContainer) { $_.Label } else { if ($null -ne $_.Label) { $_.Label.Replace("--","\") } else { $_.Label } }
         Tag = @{ Path = $_.RelativePath; Command = $_.FullName }
     }
 
@@ -94,11 +94,13 @@ $items = Get-ChildItem -Recurse | Select-Object FullName, PsIsContainer, @{
 
     [string[]]$Branch = if ($null -ne $_.RelativePath) { $_.RelativePath.Split("\") } else { @() }
     $node = $CtxMnu
-    for ([int]$n = 0; $n -lt $(if ($_.PsIsContainer) { $Branch.Count - 1 } else { $Branch.Count }); $n++) {
+    for ([int]$n = 0; ($null -ne $node) -and ($n -lt $(if ($_.PsIsContainer) { $Branch.Count - 1 } else { $Branch.Count })); $n++) {
         $node = $node.MenuItems | Where-Object { $_.Text -eq $Branch[$n] }
     }
 
-    [void]$node.MenuItems.Add($mnuItem)
+    if ($null -ne $node) {
+        [void]$node.MenuItems.Add($mnuItem)
+    }
 }
 #endregion
 
